@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,height=device-height,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#07090d">
+  <title>Arcane Lab</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; background: #07090d; overflow: hidden; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    #unity-canvas { width: 100vw; height: 100vh; display: block; background: #07090d; outline: none; }
+    #loading {
+      position: fixed; inset: 0; display: grid; place-items: center; z-index: 10;
+      background: radial-gradient(circle at 50% 48%, #15110d 0%, #090b0f 42%, #050609 100%);
+      transition: opacity 240ms ease;
+    }
+    #loading.hidden { opacity: 0; pointer-events: none; }
+    .loader { width: min(360px, 70vw); }
+    .loader-title { color: #eee8df; font-size: 13px; letter-spacing: .24em; font-weight: 650; margin-bottom: 12px; }
+    .track { height: 2px; width: 100%; background: #292d31; overflow: hidden; }
+    #progress { width: 0%; height: 100%; background: #d98542; transition: width 80ms linear; }
+    #warning { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 20; max-width: min(720px, 90vw); }
+    #warning > div { color: #f4eee7; background: rgba(120, 42, 21, .96); padding: 9px 12px; border-radius: 6px; margin-bottom: 5px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <canvas id="unity-canvas" tabindex="-1"></canvas>
+  <div id="loading"><div class="loader"><div class="loader-title">ARCANE LAB</div><div class="track"><div id="progress"></div></div></div></div>
+  <div id="warning"></div>
+  <script>
+    const canvas = document.querySelector('#unity-canvas');
+    const loading = document.querySelector('#loading');
+    const progress = document.querySelector('#progress');
+    const warning = document.querySelector('#warning');
+
+    function showBanner(message, type) {
+      const item = document.createElement('div');
+      item.textContent = message;
+      warning.appendChild(item);
+      if (type !== 'error') setTimeout(() => item.remove(), 5000);
+    }
+
+    const buildUrl = 'Build';
+    const config = {
+      arguments: [],
+      dataUrl: buildUrl + '/WebGLPages.data',
+      frameworkUrl: buildUrl + '/WebGLPages.framework.js',
+      codeUrl: buildUrl + '/WebGLPages.wasm',
+      streamingAssetsUrl: 'StreamingAssets',
+      companyName: 'kikutadev',
+      productName: 'Arcane Lab',
+      productVersion: '1.0',
+      showBanner,
+      devicePixelRatio: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 1 : Math.min(window.devicePixelRatio || 1, 2)
+    };
+
+    const script = document.createElement('script');
+    script.src = buildUrl + '/WebGLPages.loader.js';
+    script.onload = () => {
+      createUnityInstance(canvas, config, value => { progress.style.width = `${Math.round(value * 100)}%`; })
+        .then(() => loading.classList.add('hidden'))
+        .catch(message => { showBanner(String(message), 'error'); loading.classList.add('hidden'); });
+    };
+    script.onerror = () => showBanner('Failed to load the Arcane Lab WebGL runtime.', 'error');
+    document.body.appendChild(script);
+  </script>
+</body>
+</html>
