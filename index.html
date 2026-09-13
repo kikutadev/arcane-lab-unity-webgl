@@ -42,8 +42,11 @@
     }
 
     const buildUrl = 'Build';
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const renderScale = Math.min(window.devicePixelRatio || 1, 2);
+    const mobileArguments = isMobile ? ['-arcaneMobile', '-arcaneUiScale', String(renderScale)] : [];
     const config = {
-      arguments: [],
+      arguments: mobileArguments,
       dataUrl: buildUrl + '/WebGLPages.data',
       frameworkUrl: buildUrl + '/WebGLPages.framework.js',
       codeUrl: buildUrl + '/WebGLPages.wasm',
@@ -52,7 +55,8 @@
       productName: 'Arcane Lab',
       productVersion: '1.0',
       showBanner,
-      devicePixelRatio: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 1 : Math.min(window.devicePixelRatio || 1, 2)
+      // DPR 1 made UI text visibly rasterized on high-density phones. Cap at 2 for a sharp/performant balance.
+      devicePixelRatio: renderScale
     };
 
     const script = document.createElement('script');
