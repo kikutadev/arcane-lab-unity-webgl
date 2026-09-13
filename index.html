@@ -42,25 +42,28 @@
     }
 
     const buildUrl = 'Build';
+    const buildId = '1789273632';
+    const versioned = path => `${path}?v=${encodeURIComponent(buildId)}`;
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const renderScale = Math.min(window.devicePixelRatio || 1, 2);
     const mobileArguments = isMobile ? ['-arcaneMobile', '-arcaneUiScale', String(renderScale)] : [];
     const config = {
       arguments: mobileArguments,
-      dataUrl: buildUrl + '/WebGLPages.data',
-      frameworkUrl: buildUrl + '/WebGLPages.framework.js',
-      codeUrl: buildUrl + '/WebGLPages.wasm',
+      dataUrl: versioned(buildUrl + '/WebGLPages.data.unityweb'),
+      frameworkUrl: versioned(buildUrl + '/WebGLPages.framework.js.unityweb'),
+      codeUrl: versioned(buildUrl + '/WebGLPages.wasm.unityweb'),
       streamingAssetsUrl: 'StreamingAssets',
       companyName: 'kikutadev',
       productName: 'Arcane Lab',
       productVersion: '1.0',
       showBanner,
       // DPR 1 made UI text visibly rasterized on high-density phones. Cap at 2 for a sharp/performant balance.
-      devicePixelRatio: renderScale
+      devicePixelRatio: renderScale,
+      cacheControl: () => 'no-store'
     };
 
     const script = document.createElement('script');
-    script.src = buildUrl + '/WebGLPages.loader.js';
+    script.src = versioned(buildUrl + '/WebGLPages.loader.js');
     script.onload = () => {
       createUnityInstance(canvas, config, value => { progress.style.width = `${Math.round(value * 100)}%`; })
         .then(() => loading.classList.add('hidden'))
