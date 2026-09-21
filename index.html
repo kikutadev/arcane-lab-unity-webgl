@@ -7,9 +7,9 @@
   <title>Arcane Bastion</title>
   <style>
     * { box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; margin: 0; background: #07090d; overflow: hidden; }
+    html, body { width: 100%; height: 100%; margin: 0; background: #07090d; overflow: hidden; overscroll-behavior: none; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    #unity-canvas { width: 100vw; height: 100vh; display: block; background: #07090d; outline: none; }
+    #unity-canvas { width: 100vw; height: 100vh; display: block; background: #07090d; outline: none; touch-action: none; -webkit-user-select: none; user-select: none; }
     #loading {
       position: fixed; inset: 0; display: grid; place-items: center; z-index: 10;
       background: radial-gradient(circle at 50% 48%, #15110d 0%, #090b0f 42%, #050609 100%);
@@ -33,6 +33,52 @@
     const loading = document.querySelector('#loading');
     const progress = document.querySelector('#progress');
     const warning = document.querySelector('#warning');
+    canvas.addEventListener('contextmenu', event => event.preventDefault());
+    canvas.addEventListener('touchmove', event => event.preventDefault(), { passive: false });
+
+    window.__arcanePointerQueue = [];
+    window.__arcanePointerLast = null;
+    let arcaneActivePointerId = null;
+    const enqueueArcanePointer = (type, event) => {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+      const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+      window.__arcanePointerQueue.push({ type, x, y, pointerType: event.pointerType || 'mouse' });
+      if (window.__arcanePointerQueue.length > 512) window.__arcanePointerQueue.splice(0, window.__arcanePointerQueue.length - 512);
+    };
+    canvas.addEventListener('pointerdown', event => {
+      if (arcaneActivePointerId !== null) return;
+      arcaneActivePointerId = event.pointerId;
+      try { canvas.setPointerCapture(event.pointerId); } catch (_) {}
+      enqueueArcanePointer(1, event);
+      event.preventDefault();
+    }, { passive: false });
+    canvas.addEventListener('pointermove', event => {
+      if (event.pointerId !== arcaneActivePointerId) return;
+      const coalesced = typeof event.getCoalescedEvents === 'function'
+        ? event.getCoalescedEvents()
+        : [];
+      if (coalesced.length > 0) {
+        for (const sample of coalesced) enqueueArcanePointer(2, sample);
+      } else {
+        enqueueArcanePointer(2, event);
+      }
+      event.preventDefault();
+    }, { passive: false });
+    canvas.addEventListener('pointerup', event => {
+      if (event.pointerId !== arcaneActivePointerId) return;
+      enqueueArcanePointer(3, event);
+      try { canvas.releasePointerCapture(event.pointerId); } catch (_) {}
+      arcaneActivePointerId = null;
+      event.preventDefault();
+    }, { passive: false });
+    canvas.addEventListener('pointercancel', event => {
+      if (event.pointerId !== arcaneActivePointerId) return;
+      enqueueArcanePointer(4, event);
+      arcaneActivePointerId = null;
+      event.preventDefault();
+    }, { passive: false });
 
     function showBanner(message, type) {
       const item = document.createElement('div');
@@ -42,11 +88,12 @@
     }
 
     const buildUrl = 'Build';
-    const buildId = '1789974244';
+    const buildId = '1790031045';
     const versioned = path => `${path}?v=${encodeURIComponent(buildId)}`;
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const renderScale = Math.min(window.devicePixelRatio || 1, 2);
     const mobileArguments = isMobile ? ['-arcaneMobile', '-arcaneUiScale', String(renderScale)] : [];
+    const qaMode = new URLSearchParams(window.location.search).get('qa') === '1';
     const config = {
       arguments: mobileArguments,
       dataUrl: versioned(buildUrl + '/WebGLPages.data.unityweb'),
@@ -66,7 +113,11 @@
     script.src = versioned(buildUrl + '/WebGLPages.loader.js');
     script.onload = () => {
       createUnityInstance(canvas, config, value => { progress.style.width = `${Math.round(value * 100)}%`; })
-        .then(() => loading.classList.add('hidden'))
+        .then(instance => {
+          window.__arcaneUnity = instance;
+          if (qaMode) instance.SendMessage('CastleDefenseGame', 'QaEnable');
+          loading.classList.add('hidden');
+        })
         .catch(message => { showBanner(String(message), 'error'); loading.classList.add('hidden'); });
     };
     script.onerror = () => showBanner('Failed to load the Arcane Bastion WebGL runtime.', 'error');
